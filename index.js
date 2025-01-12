@@ -57,7 +57,7 @@ const getDailyPoints = async () => {
         'Accept': 'application/json, text/plain, */*',
         'Connection': 'keep-alive',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer  ${await readFile('accessToken.txt', 'utf8')}`,
+        'Authorization': `Bearer ${await readFile('accessToken.txt', 'utf8')}`,
         'User-Agent': getRandomUserAgent()
     };
 
