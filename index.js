@@ -1,5 +1,7 @@
 import fetch from 'node-fetch';
 import readline from 'readline';
+import { writeFile } from 'fs/promises';
+import { readFile } from 'fs/promises';
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -25,10 +27,11 @@ const askQuestion = (query) => {
     return new Promise(resolve => rl.question(query, resolve));
 };
 
-const refreshToken = async (currentToken, refreshTokenValue) => {
+const refreshToken = async () => {
+    
     const refreshHeaders = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${currentToken}`,
+        'Authorization': `Bearer ${await readFile('accessToken.txt', 'utf8')}`,
         'User-Agent': getRandomUserAgent()
     };
 
@@ -36,10 +39,12 @@ const refreshToken = async (currentToken, refreshTokenValue) => {
         const refreshResponse = await fetch("https://api.assisterr.ai/incentive/auth/refresh_token/", {
             method: 'POST',
             headers: refreshHeaders,
-            body: JSON.stringify({ refresh_token: refreshTokenValue })
+            body: JSON.stringify({ refresh_token: ` ${await readFile('refreshToken.txt', 'utf8')}` })
         });
 
         const refreshData = await refreshResponse.json();
+        await writeFile('accessToken.txt', refreshData.access_token);
+        await writeFile('refreshToken.txt', refreshData.refresh_token);
         return refreshData.access_token;
     } catch (error) {
         console.error('Token refresh error:', error);
@@ -47,12 +52,12 @@ const refreshToken = async (currentToken, refreshTokenValue) => {
     }
 };
 
-const getDailyPoints = async (accessToken, refreshTokenValue) => {
+const getDailyPoints = async () => {
     let headers = {
         'Accept': 'application/json, text/plain, */*',
         'Connection': 'keep-alive',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Bearer  ${await readFile('accessToken.txt', 'utf8')}`,
         'User-Agent': getRandomUserAgent()
     };
 
@@ -65,7 +70,7 @@ const getDailyPoints = async (accessToken, refreshTokenValue) => {
         const data = await response.json();
 
         if (data.detail === 'Token expired') {
-            const newToken = await refreshToken(accessToken, refreshTokenValue);
+            const newToken = await refreshToken();
             headers.Authorization = `Bearer ${newToken}`;
 
             const retryResponse = await fetch("https://api.assisterr.ai/incentive/users/me/daily_points/", {
@@ -86,9 +91,9 @@ const getDailyPoints = async (accessToken, refreshTokenValue) => {
     }
 };
 
-const startContinuousExecution = async (accessToken, refreshTokenValue) => {
-    const executeAndScheduleNext = async (currentToken) => {
-        const newToken = await getDailyPoints(currentToken, refreshTokenValue);
+const startContinuousExecution = async () => {
+    const executeAndScheduleNext = async () => {
+        const newToken = await getDailyPoints();
         console.log(`Next execution in ${COUNTDOWN_MINUTES} minutes...`);
         setTimeout(() => executeAndScheduleNext(newToken), COUNTDOWN_MILLISECONDS);
     };
@@ -100,8 +105,9 @@ const main = async () => {
     try {
         const accessToken = await askQuestion('Enter Access Token: ');
         const refreshTokenValue = await askQuestion('Enter Refresh Token: ');
-        
-        startContinuousExecution(accessToken, refreshTokenValue);
+        await writeFile('accessToken.txt', accessToken);
+        await writeFile('refreshToken.txt', refreshTokenValue);
+        startContinuousExecution();
     } catch (error) {
         console.error('Initialization error:', error);
     }
