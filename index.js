@@ -83,11 +83,9 @@ const getDailyPoints = async () => {
             return newToken;
         } else {
             console.log('Response:', data);
-            return accessToken;
         }
     } catch (error) {
         console.error('Error:', error);
-        return accessToken;
     }
 };
 
@@ -98,7 +96,7 @@ const startContinuousExecution = async () => {
         setTimeout(() => executeAndScheduleNext(newToken), COUNTDOWN_MILLISECONDS);
     };
 
-    executeAndScheduleNext(accessToken);
+    executeAndScheduleNext();
 };
 
 const main = async () => {
